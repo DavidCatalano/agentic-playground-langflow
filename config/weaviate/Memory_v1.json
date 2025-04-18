@@ -1,46 +1,42 @@
 {
-  "classes": [
+  "class": "Memory_v1",
+  "description": "A long-term memory storage for AI interactions.",
+  "vectorizer": "text2vec-transformers",
+  "moduleConfig": {
+    "text2vec-transformers": {
+      "vectorizePropertyName": ["content"]
+    }
+  },
+  "properties": [
     {
-      "class": "Memory_v1",
-      "description": "A long-term memory storage for AI interactions.",
-      "vectorizer": "text2vec-transformers",
-      "moduleConfig": {
-        "text2vec-transformers": {
-          "vectorizePropertyName": ["content"]
-        }
-      },
-      "properties": [
-        {
-          "name": "content",
-          "dataType": ["text"],
-          "description": "The main memory content, a chunk of conversation, fact, or user information."
-        },
-        {
-          "name": "timestamp",
-          "dataType": ["date"],
-          "description": "The timestamp of when this memory was created."
-        },
-        {
-          "name": "tags",
-          "dataType": ["string[]"],
-          "description": "Labels or tags to categorize the memory."
-        },
-        {
-          "name": "source",
-          "dataType": ["string"],
-          "description": "Indicates whether the memory comes from chat history, user profile, etc."
-        },
-        {
-          "name": "importance",
-          "dataType": ["number"],
-          "description": "A score (1-10) indicating how significant this memory is."
-        },
-        {
-          "name": "relatedMemories",
-          "dataType": ["Memory_v1"],
-          "description": "Links to other relevant memories to maintain context."
-        }
-      ]
+      "name": "content",
+      "dataType": ["text"],
+      "description": "The main memory content, a chunk of conversation, fact, or user information."
+    },
+    {
+      "name": "timestamp",
+      "dataType": ["date"],
+      "description": "The timestamp of when this memory was created."
+    },
+    {
+      "name": "tags",
+      "dataType": ["string[]"],
+      "description": "Labels or tags to categorize the memory."
+    },
+    {
+      "name": "source",
+      "dataType": ["string"],
+      "description": "Indicates whether the memory comes from chat history, user profile, etc."
+    },
+    {
+      "name": "importance",
+      "dataType": ["number"],
+      "description": "A score (1-10) indicating how significant this memory is."
+    },
+    {
+      "name": "relatedMemories",
+      "dataType": ["Memory_v1"],
+      "description": "Links to other relevant memories to maintain context."
     }
   ]
 }
