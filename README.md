@@ -1,31 +1,26 @@
 # Langflow AI Prototyping Environment
 
-**DO NOT USE IN PRODUCTION**
-
 ## Overview
 
-This project provides a **Langflow-based environment** for rapid AI prototyping. It leverages a set of **containerized services** to facilitate experimentation with Langflow, Weaviate for vector storage, and various monitoring tools. The setup does **not** include an inference service.
+This project provides a **Langflow-based environment** for rapid AI prototyping. It leverages a set of **containerized services** to facilitate experimentation with Langflow, Weaviate for vector storage, and various monitoring tools. The setup does **not** include an inference service. It includes Weaviate, Postgres and Redis.
+
+NOTE: Langflow now has a [desktop client](https://www.langflow.org/desktop-form-complete), simplifying setup. The default `docker-compose.yml` now excludes self-hosted Langflow and Postgres. Use `docker-compose-langflow.yml` for a fully self-hosted browser-based setup.
 
 ## Components
 
 ### **Core Services**
 
 - **Langflow** – Main UI for building AI workflows
-- **PostgreSQL** – Database backend for Langflow and Hasura
-- **Weaviate** – Vector database for AI memory storage
+- **PostgreSQL** – Database backend for Langflow
+- **Weaviate** – Vector database for AI memory storage (available at endpoint: `/v1/graphql`)
+
 - **Weaviate Embeddings** – Handles local text embedding with `BAAI/bge-base-en-v1.5`
 - **Redis** – Caching layer first used instead of chat history shoveling but could be useful elsewhere
-
-### **Monitoring & Web UI Services**
-
 - **RedisInsight** – Web-based Redis management UI (for database inspection)
-- **Hasura** – GraphQL API engine. While built for Postgres, an action may be set up for inspection of Weaviate
-- **Hasura Data Connector** – Enables external database integrations
-- **OpenTelemetry (OTEL)** – Centralized logging and tracing
 
 ### **Embeddings Setup**
 
-- The system uses **Weaviate’s ****\`\`**** module** with **BAAI/bge-base-en-v1.5 (ONNX, CPU-optimized)**. CPU was chosen to leave VRAM for model inference.
+- The system uses **Weaviate’s module** with `BAAI/bge-base-en-v1.5 (ONNX, CPU-optimized)`. CPU was chosen to leave VRAM for model inference.
 - The embeddings service runs in a dedicated container (`langflow-weaviate-embeddings`).
 
 ### **Networking & Ports**
@@ -41,9 +36,6 @@ The following services are available at:
 | **PostgreSQL**       | n/a                                            | `langflow-postgres:5432`                    |
 | **Redis**            | n/a                                            | `langflow-redis:6379`                       |
 | **RedisInsight**     | [http://10.0.0.11:6380](http://10.0.0.11:6380) | `langflow-redisinsight:6380`                |
-| **Hasura UI**        | [http://10.0.0.11:8182](http://10.0.0.11:8182) | `langflow-hasura:8080`                      |
-| **Hasura Connector** | [http://10.0.0.11:8081](http://10.0.0.11:8081) | `langflow-hasura-data-connector:8081`       |
-| **OpenTelemetry**    | n/a                                            | `langflow-otel:4317` (gRPC) / `4318` (HTTP) |
 
 ## **Project Configuration & Utilities**
 
@@ -51,14 +43,22 @@ The following services are available at:
 
 - **Sample Langflow flows and Weaviate vector DB classes** can be found in the `config/` directory.
 
-### **Makefile Automation**
+### **Schema Setup**
 
-This project includes a `Makefile` for common tasks:
+This project includes `setup_weaviate.py` for a repeatable way to load a new schema into the vector database and populate it with sample data:
 
-| Command                     | Description                                           |
-| --------------------------- | ----------------------------------------------------- |
-| `make init-weaviate`        | Initializes the Weaviate schema from `Memory_v1.json` |
-| `make view-weaviate-schema` | Fetches the current Weaviate schema for review        |
+🛠 Commands:
+  --add-class <Collection>      Add schema from JSON (e.g. Memory_v1)
+  --add-sample <Collection>     Add sample data from corresponding _samples.py
+  --clear-sample <Collection>   Delete objects tagged as 'sample'
+  --clear-all <Collection>      Delete all objects in collection
+
+| Command                       | Description                                           |
+| ----------------------------- | ----------------------------------------------------- |
+| `--add-class <Collection>`    | Add schema from JSON (e.g. Memory_v1) |
+|  `--add-sample <Collection>`  | Add sample data from corresponding samples.py |
+|  `--clear-sample <Collection>`| Delete objects tagged as 'sample' |
+|  `--clear-all <Collection>`   | Delete all objects in collection |
 
 ## **Usage**
 
@@ -67,154 +67,24 @@ This project includes a `Makefile` for common tasks:
    docker-compose up -d
    ```
 2. **Initialize Weaviate schema**
-   This is hard-coded for a specific schema right now (`config/weaviate/Memory_v1.json`)
+   
+   Add a sample schema  (loads `config/weaviate/Memory_v1.json`)
    ```sh
-   make init-weaviate
+   python --add-class Memory_v1
    ```
-3. **Verify Weaviate schema**
-   ```sh
-   make view-weaviate-schema
-   ```
-4. **Connect Hasura to Weaviate** (optional)
-    
-    We are going to create various Actions in Hasura to map Weaviate's REST API for use with GraphQL
+   
+   *Add sample data (optional)*
 
-    **Query Memories**
-    1. Go to `Actions` > `Create`
-    2. Action definition
-        ```
-        type Query {
-            """
-            Langflow Weaviate
-            """
-            queryWeaviate: WeaviateResponse
-            }
-        ```
-    3. Type Configuration
-        ```
-        type WeaviateResponse {
-            result: String!
-            }
-        ```
-    4. Webhook (HTTP/S) Handler
-        
-        `http://langflow-weaviate:8080/v1/graphql`
-    5. Click `Add Payload Transform`
-        1. Sample Input (should pre-populate)
-            ```
-            {
-                "action": {
-                    "name": "queryWeaviate"
-                },
-                "input": {}
-            }
-            ```
-        2. Configure Request Body
-            ```
-            {
-                "query": "{ Get { Memory_v1 { content timestamp tags source importance relatedMemories { ... on Memory_v1 { content timestamp } } _additional { id } } } }"
-            }
-            ```
-    6. Click `Add Response Transform`
-        1. Configure Response Body
-            ```
-            {
-                "result": {{ $body }}
-            }
-            ```
-    7. Click `Save Action`
-    8. Test Action
-    In API tab run the following query:
-    ```
-    query {
-        queryWeaviate {
-            result
-        }
-    }
-    ```
-    
-    **Mutate (add) memory**
-    1. Go to `Actions` > `Create`
-    2. Action definition
-        ```
-        type Mutation {
-            """
-            Weaviate Mutation - Insert
-            """
-            insertMemoryV1(
-                content: String!
-                timestamp: String!
-                tags: [String!]
-                source: String!
-                importance: Int!
-                relatedMemories: [String!]
-            ): MemoryV1Response
-            }
-        ```
-    3. Type Configuration
-        ```
-        type MemoryV1Response {
-            success: Boolean!
-            message: String!
-        }
-        ```
-    4. Webhook (HTTP/S) Handler
-        
-        `http://langflow-weaviate:8080/v1/objects`
-    5. Click `Add Payload Transform`
-        1. Sample Input (should pre-populate)
-            ```
-            {
-                "action": {
-                    "name": "insertMemoryV1"
-                },
-                "input": {
-                    "content": "content",
-                    "timestamp": "timestamp",
-                    "source": "source",
-                    "importance": 10
-                }
-            }
-            ```
-        2. Configure Request Body (ignore validation failure message)
-            ```
-            {
-                "class": "Memory_v1",
-                "properties": {
-                    "content": {{$body.input.content}},
-                    "timestamp": {{$body.input.timestamp}},
-                    "tags": {{$body.input.tags}},
-                    "source": {{$body.input.source}},
-                    "importance": {{$body.input.importance}},
-                    "relatedMemories": {{$body.input.relatedMemories}}
-                }
-            }
-            ```
-    6. Click `Add Response Transform`
-        1. Configure Response Body
-            ```
-            {
-                "success": {{ $body.id != null }},
-                "message": "Memory inserted successfully with ID: {{ $body.id }}"
-            }
-            ```
-    7. Click `Save Action`    
-    8. Test Action
-        ```
-        mutation {
-            insertMemoryV1(
-                content: "Ozmo is a SaaS company focused on Human and AI-powered solutions to improve complex technical support."
-                timestamp: "2025-02-09T15:00:00Z"
-                tags: ["SaaS", "AI", "Technical Support"]
-                source: "knowledge_base"
-                importance: 7
-                relatedMemories: []
-            ) {
-                success
-                message
-            }
-        }
-        ```
+   (loads `config/weaviate/Memory_v1_samples.py`)
+   ```sh
+   python --add-sample Memory_v1
+   ```
+3. **Verify Weaviate schema and data**
+
+   Verify the schema directly `http://10.0.0.11:8181/v1/schema` or use a GraphQL client
+   [Altair GraphQL Client](https://altairgraphql.dev/) (think: Postman for Graph databases). You may save collections of queries in `agc` format.
+   
+   Note: A collection of queries is located in `config/weaviate/Memory_v1.agc`
 
 ## **Notes**
 
