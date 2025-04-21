@@ -86,6 +86,12 @@ This project includes `setup_weaviate.py` for a repeatable way to load a new sch
    
    Note: A collection of queries is located in `config/weaviate/Memory_v1.agc`
 
+4. **Setup Langflow Desktop Client**
+
+   Install the [Langflow macOS desktop client](https://www.langflow.org/desktop-form-complete) or direct your browser to yoru locally hosted Langflow
+
+   Load sample workflows located in `./config/flows`
+
 ## **Notes**
 
 - As stated setup does **not** include an LLM inference service.
